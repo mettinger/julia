@@ -8,6 +8,7 @@ struct Category
     relations
 end
 
+# Initialize a category and test it 
 function categoryInit(src::Dict, target::Dict, relations)
 
     identity = @theory f begin
@@ -87,7 +88,7 @@ function checkAssociativity(c::Category, debug::Bool = false) :: Bool
     return true
 end;
 
-#Check that the composition of any two arrows has a name by brute force
+#Check that the composition of any two arrows with matching sources and targets has a name by brute force
 function checkComposition(c::Category, debug::Bool=false) :: Bool
     
     morphisms = keys(c.src)
