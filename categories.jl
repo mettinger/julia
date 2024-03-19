@@ -8,23 +8,44 @@ struct Category
     relations
 end
 
-src = Dict(:f => 0, :g => 1, :h => 2, :i => 0, :k => 1, :m => 0, :n => 0)
-target = Dict(:f => 1, :g => 2, :h => 3, :i => 2, :k => 3, :m => 3, :n => 3)
+function categoryInit(src::Dict, target::Dict, relations)
 
-relations = @theory f begin
-    1 ∘ f == f 
-    f ∘ 1 == f
-
-    :g ∘ :f == :i 
-    :h ∘ :g == :k
-    :h ∘ :i == :m 
-    :k ∘ :f == :m 
+    identity = @theory f begin
+        1 ∘ f == f 
+        f ∘ 1 == f
+    end
     
+    cat = Category(src, target, relations ∪ identity);
+    if checkComposability(cat, true)
+        if checkComposition(cat, true)
+            if checkAssociativity(cat, true)
+                return cat
+            end
+        end
+    end
+end;
+
+function checkComposability(c::Category, debug::Bool=false)
+    for thisEquality in c.relations
+        second, first = thisEquality.left.args 
+        if second === 1 || first === 1
+            continue
+        end
+        
+        if c.src[second] != c.target[first]
+            if debug
+                println("composability violation")
+                println(first,second)
+                println(" ")
+            end
+            return false
+        end
+    end
+    return true
 end
 
-myCat = Category(src, target, relations);
-
-function simplifyComposition(i, j, c::Category)
+# Compose arrows j and i and then simplify
+function simplifyComposition(i::Symbol, j::Symbol, c::Category) :: Symbol
     expression = :($j ∘ $i) 
 
     g = EGraph(expression)
@@ -33,8 +54,8 @@ function simplifyComposition(i, j, c::Category)
     return simplified
 end
 
-function checkAssociativity(c::Category, debug = false)
-    #objects = union(Set(values(c.src)), Set(values(c.target)))
+# Check that category c satisfies associativity by brute force
+function checkAssociativity(c::Category, debug::Bool = false) :: Bool
     morphisms = keys(c.src)
  
     for i in morphisms
@@ -47,11 +68,13 @@ function checkAssociativity(c::Category, debug = false)
                     rightAssoc = simplifyComposition(i, rightAssocRight, c)
                     if leftAssoc != rightAssoc
                         if debug
+                            print("associativity violation: ")
                             println(i,j,k)
                             println(leftAssocLeft)
                             println(leftAssoc)
                             println(rightAssocRight)
                             println(rightAssoc)
+                            println(" ")
                         end
 
                         return false
@@ -64,29 +87,41 @@ function checkAssociativity(c::Category, debug = false)
     return true
 end;
 
-checkAssociativity(myCat, true)
+#Check that the composition of any two arrows has a name by brute force
+function checkComposition(c::Category, debug::Bool=false) :: Bool
+    
+    morphisms = keys(c.src)
+    leftSides = Set([string(thisEquality.left) for thisEquality in c.relations])
+
+    for i in morphisms
+        for j in morphisms
+            if c.target[i] == c.src[j]
+                thisComposition = :($j ∘ $i)
+                if !in(string(thisComposition), leftSides)
+                    if debug
+                        println("missing composition name: ")
+                        println(i,j)
+                        println(" ")
+                    end
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end;
+
+src = Dict(:f => 0, :g => 1, :h => 2, :i => 0, :k => 1, :m => 0, :n => 0)
+target = Dict(:f => 1, :g => 2, :h => 3, :i => 2, :k => 3, :m => 3, :n => 3)
+
+relations = @theory f begin
+    :g ∘ :f == :i 
+    :h ∘ :g == :k
+    :h ∘ :i == :m 
+    :k ∘ :f == :m 
+end
+
+myCat = categoryInit(src, target, relations);
 
 using NBInclude
 nbexport("categories.jl", "categories.ipynb")
-
-#==
-function checkComposition(c::Category)
-    objects = union(Set(values(c.src)), Set(values(c.target)))
-    morphisms = keys(c.src)
- 
-    for i in morphisms
-     for j in morphisms
-         if target[i] == src[j]
-             thisComposition = :($j ∘ $i)
-             println(thisComposition)
-             for rule in c.relations
-                 println(rule.left)
-                 if rule.left == thisComposition
-                     continue
-                 end
-             end
-         end
-     end
-    end
- end
- ==#
