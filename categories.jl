@@ -26,9 +26,12 @@ function categoryInit(src::Dict, target::Dict, relations)
     end
 end;
 
+Check that all the composables defined by equations have matching targets and sources.
 function checkComposability(c::Category, debug::Bool=false)
     for thisEquality in c.relations
         second, first = thisEquality.left.args 
+
+        # ignore identity relations 
         if second === 1 || first === 1
             continue
         end
@@ -45,7 +48,7 @@ function checkComposability(c::Category, debug::Bool=false)
     return true
 end
 
-# Compose arrows j and i and then simplify
+# Compose arrows j and i and then simplify to a name
 function simplifyComposition(i::Symbol, j::Symbol, c::Category) :: Symbol
     expression = :($j ∘ $i) 
 
@@ -98,7 +101,7 @@ function checkComposition(c::Category, debug::Bool=false) :: Bool
         for j in morphisms
             if c.target[i] == c.src[j]
                 thisComposition = :($j ∘ $i)
-                if !in(string(thisComposition), leftSides)
+                if !in(string(thisComposition), leftSides) # check if composition is a left side of some equation
                     if debug
                         println("missing composition name: ")
                         println(i,j)
@@ -123,6 +126,35 @@ relations = @theory f begin
 end
 
 myCat = categoryInit(src, target, relations);
+
+function productCategory(c::Category, d::Category)
+    src = srcProduct(c, d)
+    target = targetProduct(c, d)
+    #relations = relationsProduct(c, d)
+    #productCat = categoryInit(src, target, relations)
+    #return productCat
+end;
+
+function srcProduct(c::Category, d::Category)
+    srcKeys = [(i, j) for i in keys(c.src) for j in keys(d.src)]
+    srcValues = [(i,j) for i in values(c.src) for j in values(d.src)]
+    return Dict(zip(srcKeys, srcValues))
+end
+
+function targetProduct(c::Category, d::Category)
+    targetKeys = [(i, j) for i in keys(c.target) for j in keys(d.target)]
+    targetValues = [(i,j) for i in values(c.target) for j in values(d.target)]
+    return Dict(zip(targetKeys, targetValues))
+end
+
+function relationsProduct(c::Category, d::Category)
+    return c.relations
+end
+
+cat1 = categoryInit(src, target, relations);
+cat2 = categoryInit(src, target, relations);
+
+cat1CrossCat2 = productCategory(cat1, cat2)
 
 using NBInclude
 nbexport("categories.jl", "categories.ipynb")
