@@ -36,7 +36,6 @@ function addIdentityMorphisms(src, target)
             end
         end
     end
-
     return src,target, identityRelations
 end
 
@@ -208,41 +207,3 @@ cat2 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentit
 #println(productCat1Cat2)
 
 println("Done...")
-
-#=
-function relationsProduct(c::Category, d::Category)
-    relations = Vector{EqualityRule}([])
-    for cRelation in c.relations
-        leftSecond = replace(string((cRelation.left.args[1], "~x")), "\"" => "")
-        leftFirst = replace(string((cRelation.left.args[2], "~x")), "\"" => "")
-        right = replace(string((cRelation.right, "~x")), "\"" => "")
-        thisRelation = @rule comp($leftSecond, $leftFirst)  == $right
-        push!(relations, thisRelation)
-    end
-
-    for dRelation in d.relations
-        leftSecond = replace(string(("~x", dRelation.left.args[1])), "\"" => "")
-        leftFirst = replace(string(("~x", dRelation.left.args[2])), "\"" => "")
-        right = replace(string(("~x", dRelation.right)), "\"" => "")
-        thisRelation = @rule comp($leftSecond, $leftFirst)  == $right
-        push!(relations, thisRelation)
-    end
-
-    return relations
-end;
-
-function checkIdSimple(morphism)::Bool
-    morphism = repr(morphism)
-    if occursin("id", morphism)
-        return true
-    else
-        return false
-    end
-end
-
-identitySimple = @theory begin
-    comp(~x::checkIdSimple, ~y) --> ~y 
-    comp(~x, ~y::checkIdSimple) --> ~x
-end
-=#
-
