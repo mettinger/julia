@@ -22,6 +22,8 @@ function addIdentityMorphisms(src, target)
         thisIdMorphism = "id" * thisObject
         src[thisIdMorphism] = thisObject
         target[thisIdMorphism] = thisObject
+
+        # add rewrite rules for identity morphisms
         for thisMorphism in morphisms
             if src[thisMorphism] == thisObject
                 thisRelation = @rule comp($thisMorphism, $thisIdMorphism) == $thisMorphism
@@ -36,6 +38,18 @@ function addIdentityMorphisms(src, target)
     end
 
     return src,target, identityRelations
+end
+
+# Compose arrows j and i and then simplify to a name
+function simplifyComposition(i::String, j::String, relations, identityRelations) :: String
+
+    relations = relations ∪  identityRelations
+
+    expression = Meta.parse("comp(\"$j\", \"$i\")") 
+    g = EGraph(expression)
+    saturate!(g, relations)
+    simplified = extract!(g, astsize)
+    return simplified
 end
 
 # Initialize a category and test it 
@@ -77,17 +91,28 @@ function checkComposability(c::Category, debug::Bool=false)
     return true
 end
 
-# Compose arrows j and i and then simplify to a name
-function simplifyComposition(i::String, j::String, relations, identityRelations) :: String
+#Check that the composition of any two arrows with matching sources and targets has a name by brute force
+function checkComposition(c::Category, debug::Bool=false) :: Bool
+    
+    morphisms = [morph for morph in keys(c.src) if !occursin("id", morph)]
+    for i in morphisms
+        for j in morphisms
+            if c.target[i] == c.src[j]
+                simplified = simplifyComposition(i, j, c.relations, c.identityRelations)
 
-    relations = relations ∪  identityRelations
-
-    expression = Meta.parse("comp(\"$j\", \"$i\")") 
-    g = EGraph(expression)
-    saturate!(g, relations)
-    simplified = extract!(g, astsize)
-    return simplified
-end
+                if occursin("comp", simplified)
+                    if debug
+                        println("missing composition name: ")
+                        println(thisComposition)
+                        println(" ")
+                    end
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end;
 
 # Check that category c satisfies associativity by brute force
 function checkAssociativity(c::Category, debug::Bool = false) :: Bool
@@ -95,10 +120,12 @@ function checkAssociativity(c::Category, debug::Bool = false) :: Bool
     relations = c.relations
     identityRelations = c.identityRelations
 
+    println("Checking associativity...")
     for i in morphisms
         for j in morphisms
             for k in morphisms
                 if (c.target[i] == c.src[j]) && (c.target[j] == c.src[k])
+                    println((k,j,i))
                     leftAssocLeft = simplifyComposition(i, j, relations, identityRelations)
                     leftAssoc = simplifyComposition(leftAssocLeft, k, relations, identityRelations)
                     rightAssocRight = simplifyComposition(j, k, relations, identityRelations)
@@ -121,29 +148,6 @@ function checkAssociativity(c::Category, debug::Bool = false) :: Bool
         end
     end
 
-    return true
-end;
-
-#Check that the composition of any two arrows with matching sources and targets has a name by brute force
-function checkComposition(c::Category, debug::Bool=false) :: Bool
-    
-    morphisms = [morph for morph in keys(c.src) if !occursin("id", morph)]
-    for i in morphisms
-        for j in morphisms
-            if c.target[i] == c.src[j]
-                simplified = simplifyComposition(i, j, c.relations, c.identityRelations)
-
-                if occursin("comp", simplified)
-                    if debug
-                        println("missing composition name: ")
-                        println(thisComposition)
-                        println(" ")
-                    end
-                    return false
-                end
-            end
-        end
-    end
     return true
 end;
 
@@ -197,13 +201,12 @@ relations = @theory begin
     comp("k", "f") --> "m" 
 end
 
-temp = 5
 cat1 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 cat2 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 
-productCat1Cat2 = productCategory(cat1, cat2)
+#productCat1Cat2 = productCategory(cat1, cat2)
+#println(productCat1Cat2)
 
-println(productCat1Cat2)
 println("Done...")
 
 #=
@@ -227,9 +230,7 @@ function relationsProduct(c::Category, d::Category)
 
     return relations
 end;
-=#
 
-#=
 function checkIdSimple(morphism)::Bool
     morphism = repr(morphism)
     if occursin("id", morphism)
