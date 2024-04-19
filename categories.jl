@@ -124,7 +124,11 @@ function checkAssociativity(c::Category, debug::Bool = false) :: Bool
         for j in morphisms
             for k in morphisms
                 if (c.target[i] == c.src[j]) && (c.target[j] == c.src[k])
+                    if occursin("id", i * j * k)
+                        continue
+                    end
                     println((k,j,i))
+
                     leftAssocLeft = simplifyComposition(i, j, relations, identityRelations)
                     leftAssoc = simplifyComposition(leftAssocLeft, k, relations, identityRelations)
                     rightAssocRight = simplifyComposition(j, k, relations, identityRelations)
@@ -203,7 +207,7 @@ end
 cat1 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 cat2 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 
-#productCat1Cat2 = productCategory(cat1, cat2)
+productCat1Cat2 = productCategory(cat1, cat2)
 #println(productCat1Cat2)
 
 println("Done...")
