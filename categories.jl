@@ -7,8 +7,17 @@ using Debugger
 mutable struct Category
     src::Dict
     target::Dict
+    objects
+    morphisms
     relations
     identityRelations
+end
+
+mutable struct Functor
+    srcCat::Category
+    targetCat::Category
+    objectMap
+    morphismMap
 end
 
 function addIdentityMorphisms(src, target)
@@ -54,11 +63,17 @@ end
 # Initialize a category and test it 
 function categoryInit(src::Dict, target::Dict, relations, identityRelations; addIdentity::Bool)
 
+    # check all morphisms have a source and target
+    @assert Set(keys(src)) == Set(keys(target))
+    morphisms = keys(src)
+    objects = values(src) ∪ values(target)
+
+    # optional add identity morphisms and relations
     if addIdentity
         src, target, identityRelations = addIdentityMorphisms(src, target)
     end
 
-    cat = Category(src, target, relations, identityRelations);
+    cat = Category(src, target, objects, morphisms, relations, identityRelations);
     if checkComposability(cat, true)
         if checkComposition(cat, true)
             if checkAssociativity(cat, true)
@@ -67,6 +82,38 @@ function categoryInit(src::Dict, target::Dict, relations, identityRelations; add
         end
     end
 end;
+
+function functorInit(srcCat::Category, targetCat::Category, objectMap, morphismMap)
+    functor = Functor(srcCat, targetCat, objectMap, morphismMap)
+    #check identity and composition
+    if homomorphismFunctorCheck(functor)
+        return functor
+    end
+end
+
+function homomorphismFunctorCheck(functor)
+    srcCat = functor.srcCat
+    targetCat = functor.targetCat
+
+    for i in srcCat.morphisms
+        src = srcCat.src[i]
+        target = srcCat.target[i]
+
+        # check source and target of morphism image
+        if (targetCat.src[functor.morphismMap[i]] != functor.objectMap[src]) || (targetCat.target[functor.morphismMap[i]] != functor.objectMap[target])
+            println("Functor violation...")
+            return false
+        end
+
+        # check homomorphism
+        for j in srcCat.morphisms
+            if srcCat.target[i] == srcCat.src[j]
+
+            end
+        end
+    end
+    return true
+end
 
 #Check that all the composables defined by equations have matching targets and sources.
 function checkComposability(c::Category, debug::Bool=false)
@@ -127,8 +174,6 @@ function checkAssociativity(c::Category, debug::Bool = false) :: Bool
                     if occursin("id", i * j * k)
                         continue
                     end
-                    println((k,j,i))
-
                     leftAssocLeft = simplifyComposition(i, j, relations, identityRelations)
                     leftAssoc = simplifyComposition(leftAssocLeft, k, relations, identityRelations)
                     rightAssocRight = simplifyComposition(j, k, relations, identityRelations)
@@ -207,7 +252,6 @@ end
 cat1 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 cat2 = categoryInit(src, target, relations, Vector{EqualityRule}([]), addIdentity=true);
 
-productCat1Cat2 = productCategory(cat1, cat2)
-#println(productCat1Cat2)
+#productCat1Cat2 = productCategory(cat1, cat2)
 
 println("Done...")
